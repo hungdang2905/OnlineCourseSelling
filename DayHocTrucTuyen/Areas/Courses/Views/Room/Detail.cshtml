@@ -1,0 +1,868 @@
+﻿
+@{
+    ViewBag.Title = Model.TenLop;
+    ViewBag.Main = Model.TenLop;
+    Layout = "~/Views/Shared/_LayoutArea.cshtml";
+    NguoiDung uLogin = new NguoiDung().getNguoiDung(User.Claims.First().Value);
+    var roomImg = "";
+    if (Model.ImgBia == null) { roomImg = "cover-default.jpg"; }
+    else { roomImg = Model.ImgBia; }
+}
+@model LopHoc
+@using DayHocTrucTuyen.Models.Entities
+
+<section id="head-room-detail" style="background-image: url(/Content/Img/roomCover/@roomImg);">
+    <div class="gap2">
+        <div class="container-fluid">
+            <div class="row room-title">
+                <div class="col-lg-6 col-md-8">
+                    <div class="employer-info">
+                        <h2 id="viewroom-Name" title="@Model.MaLop"><b>@Model.TenLop</b></h2>
+                        <i>@Model.getMembers() thành viên</i>
+                        @{ var userOwner = Model.getOwner(); }
+                        <h4><a href="~/profile/info/@userOwner.MaNd">@userOwner.getFullName()</a> là giáo viên</h4>
+                    </div>
+                </div>
+                <div class="col-lg-6 col-md-4">
+                    <div class="salary-area">
+                        @foreach (var t in Model.getTag())
+                        {
+                            <span>@t.TenTag</span>
+                        }
+                        <br />
+                        @if (!Model.isOwner(uLogin.MaNd) && !Model.isMember(uLogin.MaNd))
+                        {
+                            <button onclick="setJoinRoom('@Model.MaLop', '@Model.getGiaTien()')">Tham gia ngay<span>(@Model.getGiaTien())</span></button>
+                        }
+                        else if (!Model.isOwner(uLogin.MaNd))
+                        {
+                            <button data-roomcode="@Model.MaLop" class="leave-room"><i class="fa fa-sign-out"></i> Rời khỏi lớp</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Thông báo nếu lớp học ngừng hoạt động -->
+@if(!Model.TrangThai){
+    <section>
+        <div class="pt-4 gray-bg">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="alert alert-warning mb-0 inline-block text-center">
+                            Lớp học hiện đang tạm dừng hoạt động !
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+}
+
+@if (!Model.isOwner(uLogin.MaNd) && !Model.isMember(uLogin.MaNd))
+{
+    <section>
+        <div class="gap2 gray-bg" style="min-height: 85vh">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="text-center">
+                            <span>Bạn phải là thành viên mới xem được nội dung của lớp !</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+}
+else
+{
+    <section>
+        <div class="gap2 gray-bg">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="row merged20" id="page-contents">
+
+                            <!-- Menu left-->
+                            @await Html.PartialAsync("~/Views/Shared/Menu/_RoomMenuLeft.cshtml", Model)
+
+                            <!-- Room content -->
+                            <div class="col-lg-6">
+                                <!-- Nếu lớp học đang hoạt động thì có thể đăng bài-->
+                                @if (Model.TrangThai)
+                                {
+                                    <div class="central-meta postbox">
+                                        <span class="create-post tran-bottom">Bài đăng mới</span>
+                                        <div class="new-postbox">
+                                            <figure>
+                                                <img class="wh-40" src="@uLogin.getImageAvt()" alt="Ảnh đại diện của @uLogin.getFullName()" title="@uLogin.getFullName()" />
+                                            </figure>
+                                            <div class="newpst-input">
+                                                <form method="post" id="form-create-post">
+                                                    <textarea required class="form-create-post" maxlength="500" rows="2" placeholder="@uLogin.getName() ơi, bạn đang có ý tưởng gì?"></textarea>
+                                                </form>
+                                            </div>
+                                            <div id="previewPost"></div>
+                                            <div class="attachments">
+                                                <ul>
+                                                    Đính kèm:
+                                                    <li>
+                                                        <i class="fa fa-file-text-o"></i>
+                                                        <label class="fileContainer">
+                                                            <input multiple type="file" id="fileCreatePost">
+                                                        </label>
+                                                    </li>
+                                                    <li>
+                                                        <i class="fa fa-link"></i>
+                                                        <label class="fileContainer">
+                                                            <input type="url" style="display: none" id="linkCreatePost">
+                                                        </label>
+                                                    </li>
+                                                </ul>
+                                                <button id="btnCreatePost" class="post-btn" type="submit" data-ripple="">Đăng bài</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                @if (Model.getSLPost() == 0)
+                                {
+                                    <div class="row">
+                                        <div class="col-lg-12">
+                                            <div class="text-center">
+                                                <span>Lớp chưa có bài đăng nào !</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="loadMore">
+                                        @foreach (var post in ViewData["Post"] as List<BaiDang>)
+                                        {
+                                            <div class="central-meta item">
+                                                <div class="user-post">
+                                                    <div class="friend-info">
+                                                        <figure>
+                                                            <img class="wh-40" src="@post.getOwner().getImageAvt()" alt="" />
+                                                        </figure>
+                                                        <div class="friend-name">
+                                                            <div class="more">
+                                                                @if (post.isGhim())
+                                                                {<i class="bx bx-pin post-pin active" data-toggle="tooltip" title="Bài viết được ghim đầu trang"></i>}
+                                                                else
+                                                                { <i class="bx bx-pin post-pin" data-toggle="tooltip" title="Bài viết được ghim đầu trang"></i>}
+                                                                <!-- Nếu lớp học hoạt động thì có thể tương tác-->
+                                                                @if (Model.TrangThai)
+                                                                {
+                                                                    <div class="more-post-optns">
+                                                                        <i class="ti-more-alt"></i>
+                                                                        <ul>
+                                                                            @if (Model.isOwner(uLogin.MaNd))
+                                                                            {
+                                                                                if (post.isGhim())
+                                                                                {
+                                                                                    <li onclick="setGhim(this,'@post.MaBai')"><i class="bx bx-pin"></i>Bỏ ghim</li>
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                    <li onclick="setGhim(this,'@post.MaBai')"><i class="bx bx-pin"></i>Ghim</li>
+                                                                                }
+                                                                            }
+                                                                            @if (post.isOwner(uLogin.MaNd) || Model.isOwner(uLogin.MaNd))
+                                                                            {
+                                                                                if (post.TrangThai)
+                                                                                {
+                                                                                    <li data-toggle="modal" data-target="#confirmTrangThaiPost" onclick="setContentTrangThai(this, '@post.MaBai')"><i class="fa fa-lock"></i>Khóa bài</li>
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                    <li data-toggle="modal" data-target="#confirmTrangThaiPost" onclick="setContentTrangThai(this, '@post.MaBai')"><i class="fa fa-unlock"></i>Mở khóa</li>
+                                                                                }
+                                                                                <li><i class="fa fa-pencil-square-o"></i>Chỉnh sửa</li>
+                                                                                <li data-toggle="modal" data-target="#confirmDeletePost" onclick="setDelPost(this, '@post.MaBai')"><i class="fa fa-trash-o"></i>Xóa</li>
+                                                                            }
+                                                                            <li class="bad-report" onclick="getReportPost('@post.MaBai')"><i class="fa fa-flag"></i>Báo cáo</li>
+                                                                        </ul>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                            <ins><a href="~/profile/info/@post.getOwner().MaNd" title="">@post.getOwner().getFullName()</a></ins>
+                                                            <span style="text-transform: none"><i class="fa fa-clock-o"></i> <span class="timeago" title="@post.ThoiGian.ToString("yyyy-MM-dd'T'HH:mm:ss")">@post.ThoiGian.ToString()</span></span>
+                                                        </div>
+                                                        <div class="post-meta">
+                                                            <div class="description">
+                                                                <p>@post.NoiDung</p>
+                                                            </div>
+                                                            @if (post.DinhKem != null)
+                                                            {
+                                                                string[] listFile = new string[] { "" };
+                                                                listFile = post.DinhKem.Split(',');
+                                                                List<string> listImg = new List<string>();
+                                                                List<string> listNotImg = new List<string>();
+
+                                                                for (var i = 0; i < listFile.Length; i++)
+                                                                {
+                                                                    if (listFile[i].ToLower().EndsWith(".png") || listFile[i].ToLower().EndsWith(".jpg") || listFile[i].ToLower().EndsWith(".jpeg") || listFile[i].ToLower().EndsWith(".gif"))
+                                                                    {
+                                                                        listImg.Add(listFile[i]);
+                                                                    }
+                                                                    else { listNotImg.Add(listFile[i]); }
+                                                                }
+                                                                if (listImg.Count != 0)
+                                                                {
+                                                                    switch (listImg.Count)
+                                                                    {
+                                                                        case 1:
+                                                                            <figure>
+                                                                                <a class="strip" href="~/Content/filePost/@listImg[0]" title="" data-strip-group="@post.MaBai" data-strip-group-options="loop: false">
+                                                                                    <div>
+                                                                                        <img src="~/Content/filePost/@listImg[0]" alt="" />
+                                                                                    </div>
+                                                                                </a>
+                                                                            </figure>
+                                                                            break;
+                                                                        case 2:
+                                                                            <figure>
+                                                                                <div class="img-bunch">
+                                                                                    <div class="row">
+                                                                                        @foreach (var i in listImg)
+                                                                                        {
+                                                                                            <div class="col-lg-6 col-md-6 col-sm-6">
+                                                                                                <figure>
+                                                                                                    <a class="strip" href="~/Content/filePost/@i" title="" data-strip-group="@post.MaBai" data-strip-group-options="loop: false">
+                                                                                                        <div>
+                                                                                                            <img src="~/Content/filePost/@i" alt="" />
+                                                                                                        </div>
+                                                                                                    </a>
+                                                                                                </figure>
+                                                                                            </div>
+                                                                                        }
+                                                                                    </div>
+                                                                                </div>
+                                                                            </figure>
+                                                                            break;
+                                                                        case 3:
+                                                                            <figure>
+                                                                                <div class="img-bunch">
+                                                                                    <div class="row">
+                                                                                        @for (var i = 0; i < listImg.Count; i++)
+                                                                                        {
+                                                                                            if (i < listImg.Count - 1)
+                                                                                            {
+                                                                                                <div class="col-lg-6 col-md-6 col-sm-6">
+                                                                                                    <figure>
+                                                                                                        <a class="strip" href="~/Content/filePost/@listImg[i]" title="" data-strip-group="@post.MaBai" data-strip-group-options="loop: false">
+                                                                                                            <div>
+                                                                                                                <img src="~/Content/filePost/@listImg[i]" alt="" />
+                                                                                                            </div>
+                                                                                                        </a>
+                                                                                                    </figure>
+                                                                                                </div>
+                                                                                            }
+                                                                                            else
+                                                                                            {
+                                                                                                <div class="col-lg-12 col-md-12 col-sm-12">
+                                                                                                    <figure>
+                                                                                                        <a class="strip" href="~/Content/filePost/@listImg[i]" title="" data-strip-group="@post.MaBai" data-strip-group-options="loop: false">
+                                                                                                            <div>
+                                                                                                                <img src="~/Content/filePost/@listImg[i]" alt="" />
+                                                                                                            </div>
+                                                                                                        </a>
+                                                                                                    </figure>
+                                                                                                </div>
+                                                                                            }
+                                                                                        }
+                                                                                    </div>
+                                                                                </div>
+                                                                            </figure>
+                                                                            break;
+                                                                        case 4:
+                                                                            <figure>
+                                                                                <div class="img-bunch">
+                                                                                    <div class="row">
+                                                                                        @foreach (var i in listImg)
+                                                                                        {
+                                                                                            <div class="col-lg-6 col-md-6 col-sm-6">
+                                                                                                <figure>
+                                                                                                    <a class="strip" href="~/Content/filePost/@i" title="" data-strip-group="@post.MaBai" data-strip-group-options="loop: false">
+                                                                                                        <div>
+                                                                                                            <img src="~/Content/filePost/@i" alt="" />
+                                                                                                        </div>
+                                                                                                    </a>
+                                                                                                </figure>
+                                                                                            </div>
+                                                                                        }
+                                                                                    </div>
+                                                                                </div>
+                                                                            </figure>
+                                                                            break;
+                                                                        default:
+                                                                            var dem = 0;
+                                                                            <figure>
+                                                                                <div class="img-bunch">
+                                                                                    <div class="row">
+                                                                                        @for (var i = 0; i < listImg.Count; i++)
+                                                                                        {
+                                                                                            if (i < 3)
+                                                                                            {
+                                                                                                <div class="col-lg-6 col-md-6 col-sm-6">
+                                                                                                    <figure>
+                                                                                                        <a class="strip" href="~/Content/filePost/@listImg[i]" title="" data-strip-group="@post.MaBai" data-strip-group-options="loop: false">
+                                                                                                            <div>
+                                                                                                                <img src="~/Content/filePost/@listImg[i]" alt="" />
+                                                                                                            </div>
+                                                                                                        </a>
+                                                                                                    </figure>
+                                                                                                </div>
+                                                                                            }
+                                                                                            else
+                                                                                            {
+                                                                                                dem++;
+                                                                                                <a class="strip" style="display: none;" href="~/Content/filePost/@listImg[i]" title="" data-strip-group="@post.MaBai" data-strip-group-options="loop: false"></a>
+                                                                                            }
+                                                                                        }
+                                                                                        <div class="col-lg-6 col-md-6 col-sm-6">
+                                                                                            <figure>
+                                                                                                <a class="strip" href="~/Content/filePost/@listImg[3]" title="">
+                                                                                                    <div>
+                                                                                                        <img src="~/Content/filePost/@listImg[3]" alt="" />
+                                                                                                    </div>
+                                                                                                </a>
+                                                                                                <div class="more-photos">
+                                                                                                    <span>+@dem</span>
+                                                                                                </div>
+                                                                                            </figure>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </figure>
+                                                                            break;
+                                                                    }
+                                                                }
+                                                                if (listNotImg.Count != 0)
+                                                                {
+                                                                    <div class="img-bunch">
+                                                                        @foreach (var i in listNotImg)
+                                                                        {
+                                                                            switch (i.Substring(i.LastIndexOf('.') + 1))
+                                                                            {
+                                                                                case "pdf":
+                                                                                    <figure style="cursor: pointer" data-toggle="modal" data-target="#myChoosePDF" onclick="getChoose('@i')">
+                                                                                        <div class="file-post">
+                                                                                            <div class="row">
+                                                                                                <div class="col-3 icon-type">
+                                                                                                    <img class="wh-42" src="~/Content/Img/Resources/pdf.jpg" />
+                                                                                                </div>
+                                                                                                <div class="col-9">
+                                                                                                    <div class="col-12">
+                                                                                                        <span class="type">@i.Substring(i.LastIndexOf('.') + 1)</span>
+                                                                                                    </div>
+                                                                                                    <div class="col-12">
+                                                                                                        <span class="name">@i.Substring(16)</span>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </figure>
+                                                                                    break;
+                                                                                case "mp4":
+                                                                                    <figure>
+                                                                                        <video class="col-12" controls loop>
+                                                                                            <source src="~/Content/filePost/@i" />
+                                                                                        </video>
+                                                                                    </figure>
+                                                                                    break;
+                                                                                default:
+                                                                                    <figure style="cursor: pointer" onclick="downloadfile('@i')">
+                                                                                        <div class="file-post">
+                                                                                            <div class="row">
+                                                                                                <div class="col-3 icon-type">
+                                                                                                    @switch (i.Substring(i.LastIndexOf('.') + 1))
+                                                                                                    {
+                                                                                                        case "docx":
+                                                                                                            <img class="wh-42" src="~/Content/Img/Resources/word.png" />
+                                                                                                            break;
+                                                                                                        case "doc":
+                                                                                                            <img class="wh-42" src="~/Content/Img/Resources/word.png" />
+                                                                                                            break;
+                                                                                                        case "xlsx":
+                                                                                                            <img class="wh-42" src="~/Content/Img/Resources/excel.png" />
+                                                                                                            break;
+                                                                                                        case "xls":
+                                                                                                            <img class="wh-42" src="~/Content/Img/Resources/excel.png" />
+                                                                                                            break;
+                                                                                                        case "ppt":
+                                                                                                            <img class="wh-42" src="~/Content/Img/Resources/powerpoint.png" />
+                                                                                                            break;
+                                                                                                        case "pptx":
+                                                                                                            <img class="wh-42" src="~/Content/Img/Resources/powerpoint.png" />
+                                                                                                            break;
+                                                                                                        case "rar":
+                                                                                                            <img class="wh-42" src="~/Content/Img/Resources/rar.png" />
+                                                                                                            break;
+                                                                                                        case "zip":
+                                                                                                            <img class="wh-42" src="~/Content/Img/Resources/rar.png" />
+                                                                                                            break;
+                                                                                                        default:
+                                                                                                            <img class="wh-42" src="~/Content/Img/Resources/file.png" />
+                                                                                                            break;
+                                                                                                    }
+                                                                                                </div>
+                                                                                                <div class="col-9">
+                                                                                                    <div class="col-12">
+                                                                                                        <span class="type">@i.Substring(i.LastIndexOf('.') + 1)</span>
+                                                                                                    </div>
+                                                                                                    <div class="col-12">
+                                                                                                        <span class="name">@i.Substring(16)</span>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </figure>
+                                                                                    break;
+                                                                            }
+                                                                        }
+                                                                    </div>
+                                                                }
+                                                            }
+                                                            <div class="we-video-info">
+                                                                <ul>
+                                                                    <li>
+                                                                        @if (post.liked(uLogin.MaNd))
+                                                                        {<div id="@post.MaBai" class="likes heart liked" title="Yêu thích" onclick="likePost('@post.MaBai', '@uLogin.MaNd')">❤ <span>@post.getSLCamXuc()</span></div>}
+                                                                    else
+                                                                    { <div id="@post.MaBai" class="likes heart" title="Yêu thích" onclick="likePost('@post.MaBai', '@uLogin.MaNd')">❤ <span>@post.getSLCamXuc()</span></div>}
+                                                                    </li>
+                                                                    <li>
+                                                                        <span class="comment" title="Bình luận">
+                                                                            <i class="fa fa-commenting"></i>
+                                                                            <ins>@post.getSLBinhLuan()</ins>
+                                                                        </span>
+                                                                    </li>
+                                                                </ul>
+                                                                <div class="users-thumb-list">
+                                                                    @if (post.getSLCamXuc() > 0)
+                                                                    {
+                                                                        var slcx = 0;
+                                                                        for (var i = 0; i < post.getSLCamXuc(); i++)
+                                                                        {
+                                                                            if (i < 5)
+                                                                            {
+                                                                                <a data-toggle="tooltip" title="@post.getMemsCamXuc()[i].getFullName()" href="~/Profile/Info/@post.getMemsCamXuc()[i].MaNd">
+                                                                                    <img class="wh-35" alt="" src="@post.getMemsCamXuc()[i].getImageAvt()" />
+                                                                                </a>
+                                                                            }
+                                                                            if (i > 1) { slcx++; }
+                                                                        }
+                                                                        switch (post.getSLCamXuc())
+                                                                        {
+                                                                            case 1:
+                                                                                <span style="text-transform: none"><strong>@post.getMemsCamXuc()[0].Ten</strong> đã thích.</span>
+                                                                                break;
+                                                                            case 2:
+                                                                                <span style="text-transform: none"><strong>@post.getMemsCamXuc()[0].Ten</strong> và <strong>@post.getMemsCamXuc()[1].Ten</strong> đã thích.</span>
+                                                                                break;
+                                                                            default:
+                                                                                <span style="text-transform: none"><strong>@post.getMemsCamXuc()[0].Ten</strong>, <strong>@post.getMemsCamXuc()[1].Ten</strong> và @slcx người khác đã thích.</span>
+                                                                                break;
+                                                                        }
+                                                                    }
+
+
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="coment-area">
+                                                            @if (post.TrangThai)
+                                                            {
+                                                                <ul class="we-comet">
+                                                                    @if (post.getSLBinhLuan() == 0)
+                                                                    {
+                                                                        <li class="text-center"><span>Chưa có bình luận nào</span></li>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        foreach (var bl in post.getNDBinhLuan())
+                                                                        {
+                                                                            <li>
+                                                                                <div class="comet-avatar">
+                                                                                    <img class="wh-32" src="@post.getTTMember(bl.MaNd).getImageAvt()" alt="" />
+                                                                                </div>
+                                                                                <div class="we-comment">
+                                                                                    <h5><a href="~/profile/info/@bl.MaNd" title="">@post.getTTMember(bl.MaNd).getFullName()</a></h5>
+                                                                                    <p>@bl.NoiDung</p>
+                                                                                    <div class="inline-itms">
+                                                                                        <span class="timeago" style="text-transform: none" title="@bl.ThoiGian.ToString("yyyy-MM-dd'T'HH:mm:ss")">@bl.ThoiGian.ToString()</span>
+                                                                                        <a class="we-reply" title="Trả lời">Trả lời</a>
+                                                                                        @if (bl.MaNd.Equals(uLogin.MaNd))
+                                                                                        {<a title="Xóa bình luận" data-toggle="modal" data-target="#confirmDeleteComment" onclick="setComment(this, '@bl.MaBai', '@bl.ThoiGian.ToString()')">Xóa</a>}
+                                                                                        else
+                                                                                        { <a class="rpt-comment" title="Báo cáo">Báo cáo</a>}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </li>
+                                                                        }
+                                                                    }
+
+                                                                    <!-- Nếu lớp học đang hoạt động thì có thể viết bình luận-->
+                                                                    @if (Model.TrangThai)
+                                                                    {
+                                                                        <li class="post-comment">
+                                                                            <div class="comet-avatar">
+                                                                                <img class="wh-32" src="@post.getOwner().getImageAvt()" alt="" />
+                                                                            </div>
+                                                                            <div class="post-comt-box">
+                                                                                <form method="post">
+                                                                                    <textarea id="@post.MaBai" placeholder="Viết cảm nghĩ của bạn..."></textarea>
+                                                                                    <div class="add-smiles">
+                                                                                        <div class="uploadimage">
+                                                                                            <i class="fa fa-link"></i>
+                                                                                            <label class="fileContainer">
+                                                                                                <input type="file">
+                                                                                            </label>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <button type="submit"></button>
+                                                                                </form>
+                                                                            </div>
+                                                                        </li>
+                                                                    }
+                                                                </ul>
+                                                            }
+                                                            else
+                                                            {
+                                                                <div class="transform-none center-parent">
+                                                                    Bài viết này đã bị khóa !
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Menu right -->
+                            @await Html.PartialAsync("~/Views/Shared/Menu/_RoomMenuRight.cshtml", Model)
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section><!-- content -->
+}
+
+<!-- Đề xuất khóa học -->
+<section>
+    <div class="gap2 gray-bg">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="central-meta">
+                        <span class="create-post mb-0">Dành cho bạn <a href="~/default/courses" title="">Xem tất cả</a></span>
+                        <ul class="contributorz suggest-room">
+                            @foreach(var r in ViewData["SuggestRoom"] as List<LopHoc>)
+                            {
+                                <li>
+                                    <img src="@r.getImage()" alt="">
+                                    <div class="d-flex justify-content-between align-items-center tag">
+                                        @foreach (var t in r.getTag())
+                                        {
+                                            <span>@t.TenTag</span>
+                                        }
+                                    </div>
+                                    <div class="sugtd-frnd-meta">
+                                        <span class="name" title="">@r.TenLop</span>
+                                        <span><a href="~/profile/info/@r.MaNd" title="@r.getOwner().getFullName()" data-toggle="tooltip">@r.getOwner().Ten</a> là giáo viên</span>
+                                        <ul class="add-remove-frnd">
+                                            <li class="add-tofrndlist"><a href="~/courses/room/detail/@r.MaLop"><i class="fa fa-plus"></i> Tham gia lớp</a></li>
+                                        </ul>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!--Popup xem hoặc tải pdf-->
+<div class="modal fade" id="myChoosePDF">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bạn cần gì?</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                Chúng tôi hỗ trợ bạn xem trực tiếp file pdf mà không cần tải về. Trường hợp bạn muốn lưu về máy thì nhấn tải về.
+            </div>
+            <div style="margin: auto; padding-bottom: 15px">
+                <button type="button" class="main-btn btn-info btn-popup" data-dismiss="modal" onclick="chooseView()">Xem</button>
+                <button type="button" class="main-btn btn-success btn-popup" data-dismiss="modal" onclick="chooseDownload()">Tải về</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--Popup xác nhận xóa bài viết-->
+<div class="modal fade" id="confirmDeletePost">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bạn thật sự muốn xóa?</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                Sau khi nhấn xóa bài viết, mọi thông tin về bình luận cũng như lượt thích bị xóa theo và bạn không thể khôi phục lại. Bạn có chắc chắn muốn xóa?
+            </div>
+            <div style="margin: auto; padding-bottom: 15px">
+                <button type="button" class="main-btn btn-popup main-color" data-dismiss="modal" onclick="deletePost()">Xóa</button>
+                <button type="button" class="main-btn btn-popup is-cancel" data-dismiss="modal">Nghĩ lại</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--Popup xác nhận xóa bình luận-->
+<div class="modal fade" id="confirmDeleteComment">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bạn thật sự muốn xóa?</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                Sau khi xóa bạn không thể khôi phục lại bình luận. Mọi nội dung bị xóa sẽ mất hết !
+            </div>
+            <div style="margin: auto; padding-bottom: 15px">
+                <button type="button" class="main-btn btn-popup main-color" data-dismiss="modal" onclick="deleteComment()">Xóa</button>
+                <button type="button" class="main-btn btn-popup is-cancel" data-dismiss="modal">Nghĩ lại</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--Popup khóa hoặc mở khóa bài đăng-->
+<div class="modal fade" id="confirmTrangThaiPost">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title set-trang-thai-post">Tiêu đề !</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body set-trang-thai-post">
+                Nội dung !
+            </div>
+            <div style="margin: auto; padding-bottom: 15px">
+                <button type="button" class="main-btn btn-popup main-color" data-dismiss="modal" onclick="setTrangThaiPost()">Xác nhận</button>
+                <button type="button" class="main-btn btn-popup is-cancel" data-dismiss="modal">Nghĩ lại</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--Popup Báo cáo bài đăng-->
+<div class="popup-reportPost">
+    <div class="popup">
+        <span class="popup-closed"><i class="ti-close"></i></span>
+        <div class="popup-meta">
+            <div class="popup-head">
+                <h5 style="font-size: 20px">Có gì đó không ổn?</h5>
+            </div>
+            <div class="Rpt-meta">
+                <span>Hãy cho chúng tôi biết bạn gặp vấn đề gì với bài đăng này?</span>
+                <form method="post" class="c-form" id="frm-rpt-post">
+                    <div class="form-radio">
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptPost" checked="checked"><i class="check-box"></i>Spam
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptPost"><i class="check-box"></i>Nội dung xuyên tạc
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptPost"><i class="check-box"></i>Mạo danh người khác
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptPost"><i class="check-box"></i>Quảng cáo trá hình
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptPost"><i class="check-box"></i>Ngôn từ xúc phạm
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptPost"><i class="check-box"></i>Chứa nội dung nhạy cảm
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptPost"><i class="check-box"></i>Vấn đề khác
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label>Viết nội dung báo cáo</label>
+                        <textarea id="rpt-post-areas" placeholder="Hãy cho chúng tôi biết cụ thể hơn về vấn đề bạn gặp..." rows="2"></textarea>
+                    </div>
+                    <div>
+                        <button data-ripple="" type="submit" class="main-btn">Gửi</button>
+                        <button data-ripple="" type="button" class="main-btn cancel">Đóng</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--Popup Báo cáo lớp học-->
+<div class="popup-reportRoom">
+    <div class="popup">
+        <span class="popup-closed"><i class="ti-close"></i></span>
+        <div class="popup-meta">
+            <div class="popup-head">
+                <h5 style="font-size: 20px">Có gì đó không ổn?</h5>
+            </div>
+            <div class="Rpt-meta">
+                <span>Hãy cho chúng tôi biết bạn gặp vấn đề gì với lớp học này?</span>
+                <form method="post" class="c-form" id="frm-rpt-room">
+                    <div class="form-radio">
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptRoom" checked="checked"><i class="check-box"></i>Dừng hoạt động
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptRoom"><i class="check-box"></i>Nội dung xuyên tạc
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptRoom"><i class="check-box"></i>Mạo danh người khác
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptRoom"><i class="check-box"></i>Quảng cáo trá hình
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptRoom"><i class="check-box"></i>Chứa nội dung nhạy cảm
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label>
+                                <input type="radio" name="rptRoom"><i class="check-box"></i>Vấn đề khác
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label>Viết nội dung báo cáo</label>
+                        <textarea id="rpt-room-areas" placeholder="Hãy cho chúng tôi biết cụ thể hơn về vấn đề bạn gặp..." rows="2"></textarea>
+                    </div>
+                    <div>
+                        <button data-ripple="" type="submit" class="main-btn">Gửi</button>
+                        <button data-ripple="" type="button" class="main-btn cancel">Đóng</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- popup thống kê -->
+<div class="popup-wraper5">
+    <div class="popup">
+        <span class="popup-closed"><i class="ti-close"></i></span>
+        <div class="popup-meta">
+            <div class="popup-head">
+                <h5 id="modal-statistic-title">Thành viên và bài đăng trong tuần</h5>
+            </div>
+            <div class="Rpt-meta">
+                <form class="c-form">
+                    <div class="x_content" id="echart_postandmems">
+                        <div id="echart_line"></div>
+                    </div>
+                    <div>
+                        <button id="close-statistic" data-ripple="" type="button" class="main-btn cancel">Đóng</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- popup thông báo -->
+<div class="popup-wraper1">
+    <div class="popup direct-mesg">
+        <span class="popup-closed"><i class="ti-close"></i></span>
+        <div class="popup-meta">
+            <div class="popup-head">
+                <h5 id="modal-room-title">Tiêu đề cảnh báo</h5>
+            </div>
+            <div class="Rpt-meta">
+                <form class="c-form">
+                    <p id="modal-room-content">Nội dung cảnh báo</p>
+                    <div>
+                        <button id="confirm-room" data-ripple="" type="submit" class="main-btn">Gửi</button>
+                        <button id="cancel-room" data-ripple="" type="button" class="main-btn cancel">Đóng</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!Model.TrangThai)
+{
+    <!-- popup tạm dừng lớp học -->
+    <div class="popup-wraper2 active">
+        <div class="popup direct-mesg">
+            <span class="popup-closed"><i class="ti-close"></i></span>
+            <div class="popup-meta">
+                <div class="popup-head">
+                    <h5>Lớp học tạm dừng hoạt động</h5>
+                </div>
+                <div class="Rpt-meta">
+                    <form class="c-form">
+                        <p>Lớp học này hiện đang tạm dừng hoạt động, bạn chỉ có thể xem các hoạt động trước đó, không thể đăng bài và bình luận.</p>
+                        <div>
+                            <button data-ripple="" type="button" class="main-btn popup-hide">Xác nhận</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+@section ChildStyle{
+    <link rel="stylesheet" href="~/Template/css/rating.css" asp-append-version="true" />
+}
+
+@section ChildScript{
+    <script src="~/Template/js/echarts.min.js" asp-append-version="true"></script>
+    <script src="~/Template/js/custom_statistic.js" asp-append-version="true"></script>
+}
